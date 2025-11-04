@@ -1,0 +1,29 @@
+[package]
+name = "folio-ingest"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Internal dependencies
+folio-core = { path = "../folio-core" }
+
+# Error handling
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Filesystem
+walkdir.workspace = true
+camino.workspace = true
+
+# Hashing
+blake3.workspace = true
+
+# Logging
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+assert_fs.workspace = true

@@ -1,0 +1,106 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.rust }}
+        override: true
+        components: rustfmt, clippy
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo index
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    # Generate test fixtures (they're not committed)
+    - name: Install ImageMagick (Ubuntu)
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y imagemagick libimage-exiftool-perl ffmpeg
+
+    - name: Install ImageMagick (macOS)
+      if: runner.os == 'macOS'
+      run: brew install imagemagick exiftool ffmpeg
+
+    - name: Install ImageMagick (Windows)
+      if: runner.os == 'Windows'
+      run: choco install imagemagick exiftool ffmpeg -y
+
+    - name: Generate test fixtures (Unix)
+      if: runner.os != 'Windows'
+      run: ./scripts/setup-test-fixtures.sh
+
+    - name: Generate test fixtures (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: ./scripts/setup-test-fixtures.sh
+
+    - name: Check formatting
+      run: cargo fmt -- --check
+
+    - name: Run clippy
+      run: cargo clippy -- -D warnings
+
+    - name: Run tests
+      run: cargo test --verbose
+
+    - name: Build release
+      run: cargo build --release --verbose
+
+  # Separate job for integration tests (only on Linux, with network)
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Install tools for test fixtures
+      run: sudo apt-get update && sudo apt-get install -y imagemagick libimage-exiftool-perl ffmpeg
+
+    - name: Generate test fixtures
+      run: ./scripts/setup-test-fixtures.sh
+
+    - name: Run integration tests
+      run: cargo test -- --ignored
+      continue-on-error: true  # Don't fail CI if network tests fail
