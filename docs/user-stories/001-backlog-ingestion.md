@@ -1,6 +1,6 @@
 # User Story: Backlog Media Ingestion
 
-**Status:** In Progress (Slice 1 of 6 complete as of 2025-11-04)
+**Status:** In Progress (Slices 1-2 of 6 complete as of 2025-11-04)
 
 ## Story Description
 
@@ -158,14 +158,14 @@ fn example() -> Result<()> {
 ### Primary Flow: Media Discovery and Grouping
 - [x] **Slice 1:** Scan source directory recursively for media files (JPEG, MOV, MP4)
 - [x] **Slice 1:** Detect both photos (JPEG) and video clips (MOV, MP4) - CR2/NEF/MTS deferred
-- [ ] **Slice 2:** Extract capture timestamp from EXIF (photos) or file metadata (videos)
+- [x] **Slice 2:** Extract capture timestamp from EXIF (photos) or file metadata (videos)
 - [ ] **Slice 3:** Group files into temporal batches based on time proximity (e.g., 2+ hour gap = new batch)
 - [ ] **Slice 3:** Display batch information: date range, file count, total size
 - [ ] **Slice 3:** Prompt user for batch name for each temporal group (interactive mode)
 - [ ] **Slice 3:** Support `--batch-name` flag to apply single name to all files (non-interactive mode)
 
 ### Primary Flow: File Organization
-- [ ] **Slice 2:** Create `YYYY/MM/DD/` folder hierarchy based on file capture date
+- [x] **Slice 2:** Create `YYYY/MM/DD/` folder hierarchy based on file capture date
 - [ ] **Slice 3:** Rename files to `YYYYMMDD-HHMMSS-{batch-name}.{ext}` format
   - YYYYMMDD = capture date
   - HHMMSS = capture time
@@ -213,7 +213,7 @@ fn example() -> Result<()> {
 - [x] **Slice 1:** Create destination directories if they don't exist
 - [x] **Slice 1:** Handle multiple source subdirectories (walk entire tree recursively)
 - [x] **Slice 1:** Preserve original file modified timestamps on copied files (via std::fs::copy)
-- [x] **Slice 1:** Support re-running on partially completed ingestion (idempotent - skip already copied files via hash dedup)
+- [x] **Slice 1:** Support re-running on partially completed ingestion (idempotent - skip already copied files via hash deduplication)
 
 ### Error Handling
 - [ ] Error if source directory doesn't exist or is unreadable
@@ -414,7 +414,7 @@ fn example() -> Result<()> {
   - **Mitigation:** Benchmark early. Optimize hot path (hashing, EXIF). Consider parallelization if needed.
 
 - **Risk:** Deduplication has false positives (marks different photos as duplicates)
-  - **Mitigation:** Use BLAKE3 (cryptographically strong). Test with similar photos. Add --force flag to skip dedup if needed.
+  - **Mitigation:** Use BLAKE3 (cryptographically strong). Test with similar photos. Add --force flag to skip deduplication if needed.
 
 - **Risk:** Data loss if copy fails partway through
   - **Mitigation:** Atomic operations. Verify hash after copy. Don't delete source until user confirms. Consider --verify flag.

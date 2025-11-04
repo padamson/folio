@@ -14,11 +14,16 @@ echo "Setting up test fixtures in $FIXTURES_DIR..."
 mkdir -p "$FIXTURES_DIR"
 
 # Check for required tools
-command -v convert >/dev/null 2>&1 || {
-    echo "⚠️  ImageMagick 'convert' not found. Install with: brew install imagemagick"
+# Try 'magick' first (ImageMagick 7+), then fall back to 'convert' (ImageMagick 6)
+if command -v magick >/dev/null 2>&1; then
+    CONVERT_CMD="magick"
+elif command -v convert >/dev/null 2>&1; then
+    CONVERT_CMD="convert"
+else
+    echo "⚠️  ImageMagick not found. Install with: brew install imagemagick"
     echo "Skipping fixture generation. Tests may fail."
     exit 1
-}
+fi
 
 command -v exiftool >/dev/null 2>&1 || {
     echo "⚠️  exiftool not found. Install with: brew install exiftool"
@@ -28,11 +33,11 @@ command -v exiftool >/dev/null 2>&1 || {
 
 # 1. Minimal 1x1 JPEG (white pixel) - ~600 bytes
 echo "Creating minimal.jpg (1x1 white pixel)..."
-convert -size 1x1 xc:white "$FIXTURES_DIR/minimal.jpg"
+$CONVERT_CMD -size 1x1 xc:white "$FIXTURES_DIR/minimal.jpg"
 
 # 2. Small JPEG with EXIF data - for timestamp/metadata tests
 echo "Creating sample-with-exif.jpg (100x100 with D800 EXIF)..."
-convert -size 100x100 xc:blue "$FIXTURES_DIR/sample-with-exif.jpg"
+$CONVERT_CMD -size 100x100 xc:blue "$FIXTURES_DIR/sample-with-exif.jpg"
 exiftool -overwrite_original \
     -DateTimeOriginal="2024:11:04 14:02:15" \
     -Make="Nikon" \
@@ -47,11 +52,11 @@ exiftool -overwrite_original \
 
 # 3. JPEG without EXIF - for fallback timestamp tests
 echo "Creating no-exif.jpg (50x50, no EXIF)..."
-convert -size 50x50 xc:red "$FIXTURES_DIR/no-exif.jpg"
+$CONVERT_CMD -size 50x50 xc:red "$FIXTURES_DIR/no-exif.jpg"
 
 # 4. Another JPEG with different timestamp - for temporal batching tests
 echo "Creating sample-different-time.jpg (100x100, 4 hours later)..."
-convert -size 100x100 xc:green "$FIXTURES_DIR/sample-different-time.jpg"
+$CONVERT_CMD -size 100x100 xc:green "$FIXTURES_DIR/sample-different-time.jpg"
 exiftool -overwrite_original \
     -DateTimeOriginal="2024:11:04 18:15:30" \
     -Make="Nikon" \

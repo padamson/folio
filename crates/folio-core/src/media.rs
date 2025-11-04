@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use blake3::Hash as Blake3Hash;
+use chrono::{DateTime, Datelike, Utc};
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -38,6 +39,8 @@ pub struct MediaItem {
     pub hash: Blake3Hash,
     pub size: u64,
     pub media_type: MediaType,
+    pub timestamp: Option<DateTime<Utc>>,
+    pub folder_path: PathBuf,
 }
 
 /// Detect media type from file extension
@@ -50,6 +53,68 @@ pub fn detect_media_type(path: &Path) -> Option<MediaType> {
         "mp4" => Some(MediaType::Video(VideoFormat::Mp4)),
         _ => None,
     }
+}
+
+/// Extract capture timestamp from a media file
+/// Returns None if no timestamp metadata is available
+pub fn get_capture_timestamp(path: &Path, media_type: &MediaType) -> Result<Option<DateTime<Utc>>> {
+    match media_type {
+        MediaType::Photo(_) => {
+            // Try to extract EXIF DateTimeOriginal
+            let file =
+                std::fs::File::open(path).context("Failed to open file for EXIF extraction")?;
+            let mut bufreader = std::io::BufReader::new(file);
+
+            let exifreader = exif::Reader::new();
+            let exif = exifreader.read_from_container(&mut bufreader);
+
+            if let Ok(exif) = exif {
+                if let Some(field) = exif.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
+                {
+                    if let exif::Value::Ascii(ref vec) = field.value {
+                        if let Some(datetime_bytes) = vec.first() {
+                            // EXIF format: "YYYY:MM:DD HH:MM:SS"
+                            let datetime_str = String::from_utf8_lossy(datetime_bytes);
+                            // Parse EXIF datetime format
+                            if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(
+                                datetime_str.trim(),
+                                "%Y:%m:%d %H:%M:%S",
+                            ) {
+                                return Ok(Some(DateTime::<Utc>::from_naive_utc_and_offset(
+                                    dt, Utc,
+                                )));
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(None)
+        }
+        MediaType::Video(_) => {
+            // For videos, we'll use file creation/modification date as fallback
+            // TODO: Extract video metadata in future enhancement
+            Ok(None)
+        }
+    }
+}
+
+/// Get file modification timestamp as fallback
+pub fn get_file_modified_date(path: &Path) -> Result<DateTime<Utc>> {
+    let metadata = std::fs::metadata(path).context("Failed to read file metadata")?;
+    let modified = metadata
+        .modified()
+        .context("Failed to get file modification time")?;
+    Ok(modified.into())
+}
+
+/// Generate folder path from timestamp (YYYY/MM/DD)
+pub fn generate_folder_path(timestamp: DateTime<Utc>) -> PathBuf {
+    PathBuf::from(format!(
+        "{:04}/{:02}/{:02}",
+        timestamp.year(),
+        timestamp.month(),
+        timestamp.day()
+    ))
 }
 
 /// Calculate BLAKE3 hash of a file
@@ -96,11 +161,24 @@ pub fn scan_directory(path: &Path) -> Result<Vec<MediaItem>> {
         // Calculate hash
         let hash = hash_file(file_path)?;
 
+        // Extract timestamp (with fallback to modified date)
+        let timestamp = get_capture_timestamp(file_path, &media_type)?
+            .or_else(|| get_file_modified_date(file_path).ok());
+
+        // Generate folder path from timestamp
+        let folder_path = if let Some(ts) = timestamp {
+            generate_folder_path(ts)
+        } else {
+            PathBuf::from("unknown-date")
+        };
+
         items.push(MediaItem {
             path: file_path.to_path_buf(),
             hash,
             size,
             media_type,
+            timestamp,
+            folder_path,
         });
     }
 

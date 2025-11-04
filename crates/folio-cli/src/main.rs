@@ -67,8 +67,8 @@ fn main() -> Result<()> {
 
             // Scan source directory
             println!("Scanning source: {}", source);
-            let source_items = scan_directory(&source_path)
-                .context("Failed to scan source directory")?;
+            let source_items =
+                scan_directory(&source_path).context("Failed to scan source directory")?;
 
             if source_items.is_empty() {
                 println!("No media files found in source directory");
@@ -76,14 +76,20 @@ fn main() -> Result<()> {
             }
 
             // Count by type
-            let photo_count = source_items.iter()
+            let photo_count = source_items
+                .iter()
                 .filter(|i| i.media_type.is_photo())
                 .count();
-            let video_count = source_items.iter()
+            let video_count = source_items
+                .iter()
                 .filter(|i| i.media_type.is_video())
                 .count();
 
-            let plural = if source_items.len() == 1 { "file" } else { "files" };
+            let plural = if source_items.len() == 1 {
+                "file"
+            } else {
+                "files"
+            };
             println!(
                 "Found {} media {} ({} photos, {} videos)",
                 source_items.len(),
@@ -94,8 +100,7 @@ fn main() -> Result<()> {
 
             if !dry_run {
                 // Create destination directory if it doesn't exist
-                fs::create_dir_all(&dest_path)
-                    .context("Failed to create destination directory")?;
+                fs::create_dir_all(&dest_path).context("Failed to create destination directory")?;
 
                 // Scan destination to check for duplicates
                 let dest_items = scan_directory(&dest_path).unwrap_or_default();
@@ -109,9 +114,14 @@ fn main() -> Result<()> {
                 let mut skipped = 0;
 
                 for item in &source_items {
-                    let filename = item.path.file_name()
-                        .context("Failed to get filename")?;
-                    let dest_file = dest_path.join(filename);
+                    let filename = item.path.file_name().context("Failed to get filename")?;
+
+                    // Create date-based folder structure
+                    let dest_folder = dest_path.join(&item.folder_path);
+                    fs::create_dir_all(&dest_folder)
+                        .context("Failed to create date-based folder")?;
+
+                    let dest_file = dest_folder.join(filename);
 
                     // Check if already exists in destination
                     if dest_hashes.contains_key(&item.hash) {
