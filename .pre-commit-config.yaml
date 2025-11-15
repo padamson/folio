@@ -2,6 +2,9 @@
 # Install: pip install pre-commit && pre-commit install
 # Run manually: pre-commit run --all-files
 
+# Stop at first failure to save time (e.g., don't run tests if fmt fails)
+fail_fast: true
+
 repos:
   # Standard pre-commit hooks for common issues
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -34,11 +37,12 @@ repos:
   # Rust-specific checks (matches CI exactly)
   - repo: local
     hooks:
-      # 1. Format check (same as CI: cargo fmt -- --check)
+      # 1. Format code (auto-fix)
+      # Note: CI uses cargo fmt -- --check for enforcement
       - id: cargo-fmt
         name: cargo fmt
-        description: Check Rust code formatting
-        entry: cargo fmt --all -- --check
+        description: Auto-format Rust code
+        entry: cargo fmt --all
         language: system
         types: [rust]
         pass_filenames: false
@@ -61,12 +65,21 @@ repos:
         types: [rust]
         pass_filenames: false
 
-      # 4. Run tests (same as CI: cargo test --verbose)
+      # 4. Run tests (same as CI: cargo nextest run)
       # Note: This can be slow. Comment out if you prefer to only run in CI
-      - id: cargo-test
-        name: cargo test
-        description: Run unit and integration tests
-        entry: bash -c 'if [ ! -f test-data/fixtures/minimal.jpg ]; then ./scripts/setup-test-fixtures.sh; fi && cargo test --workspace'
+      - id: cargo-nextest
+        name: cargo nextest run
+        description: Run unit and integration tests with nextest
+        entry: bash -c 'if [ ! -f test-data/fixtures/minimal.jpg ]; then ./scripts/setup-test-fixtures.sh; fi && cargo nextest run --workspace'
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      # 5. Run doc-tests (same as CI: cargo test --doc)
+      - id: cargo-doctest
+        name: cargo test --doc
+        description: Run documentation tests
+        entry: cargo test --doc --workspace
         language: system
         types: [rust]
         pass_filenames: false

@@ -7,6 +7,10 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+permissions:
+  contents: write
 
 jobs:
   create-release:
@@ -16,7 +20,7 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
       version: ${{ steps.get_version.outputs.version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Get version from tag
         id: get_version
@@ -81,14 +85,13 @@ jobs:
             cross: false
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
           target: ${{ matrix.target }}
-          override: true
 
       - name: Install tools for fixtures (Ubuntu)
         if: runner.os == 'Linux'
@@ -111,8 +114,13 @@ jobs:
         shell: bash
         run: ./scripts/setup-test-fixtures.sh
 
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
       - name: Run tests
-        run: cargo test --workspace --target ${{ matrix.target }}
+        run: cargo nextest run --workspace --target ${{ matrix.target }}
 
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }} --verbose
@@ -167,13 +175,12 @@ jobs:
     needs: [create-release, build-release]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          override: true
 
       - name: Check if token is set
         id: check_token

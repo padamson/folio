@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
   test:
@@ -19,32 +20,26 @@ jobs:
         rust: [stable]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
+      uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
-        override: true
         components: rustfmt, clippy
 
-    - name: Cache cargo registry
-      uses: actions/cache@v3
+    - name: Cache Cargo
+      uses: actions/cache@v4
       with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Cache cargo index
-      uses: actions/cache@v3
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Cache cargo build
-      uses: actions/cache@v3
-      with:
-        path: target
-        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
 
     # Generate test fixtures (they're not committed)
     - name: Install ImageMagick (Ubuntu)
@@ -68,17 +63,34 @@ jobs:
       shell: bash
       run: ./scripts/setup-test-fixtures.sh
 
+    - name: Install cargo-nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-nextest
+
     - name: Check formatting
-      run: cargo fmt -- --check
+      run: cargo fmt --all -- --check
 
     - name: Run clippy
-      run: cargo clippy -- -D warnings
+      run: cargo clippy --all-targets --all-features -- -D warnings
 
-    - name: Run tests
-      run: cargo test --verbose
+    - name: Build
+      run: cargo build --verbose
 
-    - name: Build release
-      run: cargo build --release --verbose
+    - name: Run tests (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: cargo nextest run --profile ci --workspace
+
+    - name: Run tests (Windows)
+      if: runner.os == 'Windows'
+      timeout-minutes: 30
+      run: cargo nextest run --profile ci --workspace --test-threads=1
+
+    - name: Run doctests
+      run: cargo test --doc --workspace
+
+    - name: Generate documentation
+      run: cargo doc --no-deps --workspace
 
   # Separate job for integration tests (only on Linux, with network)
   integration-test:
@@ -87,13 +99,12 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
+      uses: dtolnay/rust-toolchain@master
       with:
         toolchain: stable
-        override: true
 
     - name: Install tools for test fixtures
       run: sudo apt-get update && sudo apt-get install -y imagemagick libimage-exiftool-perl ffmpeg
@@ -101,6 +112,11 @@ jobs:
     - name: Generate test fixtures
       run: ./scripts/setup-test-fixtures.sh
 
+    - name: Install cargo-nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-nextest
+
     - name: Run integration tests
-      run: cargo test -- --ignored
+      run: cargo nextest run --workspace -- --ignored
       continue-on-error: true  # Don't fail CI if network tests fail

@@ -1,6 +1,6 @@
 # User Story: Backlog Media Ingestion
 
-**Status:** In Progress (Slices 1-2 of 6 complete as of 2025-11-04)
+**Status:** In Progress (Slices 1, 2, 3a, 3b complete; 3c blocked; 4-6 not started)
 
 ## Story Description
 
@@ -159,19 +159,20 @@ fn example() -> Result<()> {
 - [x] **Slice 1:** Scan source directory recursively for media files (JPEG, MOV, MP4)
 - [x] **Slice 1:** Detect both photos (JPEG) and video clips (MOV, MP4) - CR2/NEF/MTS deferred
 - [x] **Slice 2:** Extract capture timestamp from EXIF (photos) or file metadata (videos)
-- [ ] **Slice 3:** Group files into temporal batches based on time proximity (e.g., 2+ hour gap = new batch)
-- [ ] **Slice 3:** Display batch information: date range, file count, total size
-- [ ] **Slice 3:** Prompt user for batch name for each temporal group (interactive mode)
-- [ ] **Slice 3:** Support `--batch-name` flag to apply single name to all files (non-interactive mode)
+- [x] **Slice 3b:** Group files into temporal batches based on time proximity (default: 2+ hour gap = new batch)
+- [x] **Slice 3b:** Display batch information: count and gap threshold
+- [x] **Slice 3b:** Prompt user for batch name for each temporal group (interactive mode)
+- [x] **Slice 3b:** Support `--batch-name` flag to apply single name to all files (non-interactive mode)
+- [x] **Slice 3b:** Support `--gap-threshold` flag to adjust grouping sensitivity
 
 ### Primary Flow: File Organization
 - [x] **Slice 2:** Create `YYYY/MM/DD/` folder hierarchy based on file capture date
-- [ ] **Slice 3:** Rename files to `YYYYMMDD-HHMMSS-{batch-name}.{ext}` format
+- [x] **Slice 3b:** Rename files to `YYYYMMDD-HHMMSS-{batch-name}.{ext}` format
   - YYYYMMDD = capture date
   - HHMMSS = capture time
-  - {batch-name} = user-provided name or original filename
+  - {batch-name} = user-provided name
   - {ext} = original file extension (preserve case: .jpg, .JPG, .MOV)
-- [ ] **Slice 3:** Handle filename collisions (append sequence number if needed: `-001`, `-002`)
+- [ ] **Deferred:** Handle filename collisions (append sequence number if needed: `-001`, `-002`)
 - [x] **Slice 1:** Preserve original file extension case (via case-insensitive detection)
 
 ### Primary Flow: Deduplication
@@ -208,7 +209,7 @@ fn example() -> Result<()> {
 
 ### Secondary Flows
 - [x] **Slice 1:** Support `--dry-run` flag to preview without copying files
-- [ ] **Slice 3:** Support `--batch-name <name>` flag to use single name for all files (skip interactive prompts)
+- [x] **Slice 3b:** Support `--batch-name <name>` flag to use single name for all files (skip interactive prompts)
 - [ ] **Slice 6:** Support `--yes` or `-y` flag to auto-confirm all prompts (dangerous but useful for automation)
 - [x] **Slice 1:** Create destination directories if they don't exist
 - [x] **Slice 1:** Handle multiple source subdirectories (walk entire tree recursively)

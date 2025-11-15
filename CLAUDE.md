@@ -72,6 +72,58 @@ folio/
 
 This project uses an **incremental, value-driven approach** where each component delivers immediate value to the family. Development prioritizes practical solutions over perfectionism, with an emphasis on reliability and maintainability.
 
+### Specialized Development Agents
+
+For complex workflows, use these specialized agents (located in `.claude/agents/`):
+
+1. **TDD Feature Implementation Agent** (`tdd-feature-implementation.md`)
+   - Use when: Implementing any new media processing feature
+   - Automates: Red → Green → Refactor workflow, outside-in TDD, real media validation
+   - Ensures: Tests written first, vendor neutrality maintained, rustdoc complete
+
+2. **Documentation Maintenance Agent** (`documentation-maintenance.md`)
+   - Use when: Completing slices/features, updating docs, releasing versions
+   - Automates: Just-in-time doc updates, hierarchy enforcement, CHANGELOG generation
+   - Ensures: README shows current features only, roadmap stays strategic, implementation plans stay current
+
+3. **Release Preparation Agent** (`release-preparation.md`)
+   - Use when: Preparing a version release (version bump, CHANGELOG, verification)
+   - Automates: Pre-release checks, test verification (nextest), version management, validation
+   - Ensures: All quality gates pass, CHANGELOG is complete, release process is smooth
+
+#### Automatic Agent Invocation
+
+**IMPORTANT**: Proactively use agents when user requests match these patterns:
+
+**TDD Feature Implementation Agent** - Use automatically when user:
+- Says "implement {feature}" or "add {functionality}"
+- Mentions implementing media processing (metadata extraction, ingestion, XMP generation, etc.)
+- Asks to "create a new feature" or "add support for"
+- Example triggers: "implement EXIF extraction", "add video metadata support", "create XMP sidecar generation"
+
+**Documentation Maintenance Agent** - Use automatically when user:
+- Says "Slice X complete", "Feature Y done", or "finished Slice Z"
+- Asks to "update documentation" or "update docs"
+- Mentions "release" or "preparing for release"
+- Says "feature complete" or "slice finished"
+- Example triggers: "Slice 3 complete", "backlog ingestion done", "update docs for metadata extraction"
+
+**Release Preparation Agent** - Use automatically when user:
+- Says "prepare release" or "release v{X.Y.Z}"
+- Asks to "publish to crates.io" or "publish version {X.Y.Z}"
+- Says "ready to release" or "let's release"
+- Mentions "version bump" in context of releasing
+- Example triggers: "prepare release for v0.1.0", "publish v0.1.0 to crates.io", "ready to release"
+
+**Don't use agents for**:
+- Simple single-file edits
+- Reading files or searching code
+- Running a single test
+- Quick bug fixes (< 10 lines)
+- Formatting or clippy fixes
+
+**General rule**: If the task requires 3+ steps or involves multiple components (core library, CLI, tests, docs), proactively use the appropriate agent.
+
 ### Planning and Documentation Structure
 
 This project uses structured planning documents to guide development:
@@ -206,7 +258,8 @@ For each feature, follow this workflow:
 - **Red**: Write the smallest failing test that captures the requirement
 - **Green**: Write the simplest code to make the test pass (avoid over-engineering)
 - **Refactor**: Improve code structure without changing behavior
-- Run `cargo test` frequently (after every small change)
+- Run `cargo nextest run` frequently (after every small change)
+- Run doctests separately: `cargo test --doc`
 - Run `cargo clippy` and `cargo fmt` before committing
 - **Never write code without a failing test first**
 - Keep each commit small and focused on making one test pass
@@ -318,6 +371,78 @@ Folio uses a three-tier test data strategy to balance speed, realism, and safety
     /_________\     - Multi-crate interactions
    /   Unit    \   Unit Tests (minimal fixtures)
   /_____________\    - Individual functions, error cases
+```
+
+### Documentation Testing Strategy (Doctests)
+
+**Philosophy: Executable, Verified Documentation**
+
+Folio uses **executable doctests with assertions** to ensure documentation stays synchronized with implementation:
+
+1. **Doctests must run** - No `no_run` annotation unless absolutely necessary (e.g., destructive operations)
+2. **Doctests must assert** - Include assertions to verify behavior, not just demonstrate usage
+3. **Use test fixtures** - Reference files in `test-data/fixtures/` so doctests work reliably
+4. **Prevent documentation drift** - If the API changes, doctests fail, forcing docs to update
+5. **Separate execution** - Use `cargo test --doc` to run doctests (nextest doesn't run them)
+
+**Doctest Structure (GOOD - runs and verifies):**
+
+```rust
+//! Media metadata extraction module
+//!
+//! Extracts EXIF metadata from photos and videos for vendor-neutral organization.
+//!
+//! # Example
+//!
+//! ```
+//! use folio_core::metadata::extract_metadata;
+//!
+//! // Use test fixtures so doctest can actually run
+//! let jpeg_meta = extract_metadata("test-data/fixtures/sample.jpg")?;
+//!
+//! // Assert expected behavior to prevent drift
+//! assert_eq!(jpeg_meta.camera_model, "NIKON D800");
+//! assert!(jpeg_meta.date_taken.is_some());
+//! assert_eq!(jpeg_meta.width, 800);
+//! assert_eq!(jpeg_meta.height, 600);
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+
+use std::path::Path;
+
+pub fn extract_metadata(path: impl AsRef<Path>) -> Result<Metadata> {
+    // implementation...
+}
+```
+
+**Doctest Structure (BAD - doesn't run or verify):**
+
+```rust
+// ❌ DON'T USE `no_run` unless absolutely necessary
+//! ```no_run
+//! let meta = extract_metadata("some/path.jpg")?;
+//! println!("{:?}", meta);  // ❌ No assertions
+//! ```
+```
+
+**Key principles:**
+- **Run by default** - Only use `no_run` for destructive operations or external dependencies
+- **Assert behavior** - Use `assert_eq!`, `assert!`, etc. to verify correctness
+- **Use fixtures** - Reference `test-data/fixtures/` files that exist in the repository
+- **Show realistic usage** - Demonstrate actual media processing workflows
+- **Vendor neutrality** - Examples should emphasize XMP, open formats
+
+**Running Doctests:**
+
+```bash
+# Run all doctests
+cargo test --doc --workspace
+
+# Run doctests for specific crate
+cargo test --doc -p folio-core
+
+# Run both nextest and doctests
+cargo nextest run --workspace && cargo test --doc --workspace
 ```
 
 ## Documentation
@@ -712,20 +837,23 @@ cargo init --bin crates/media-cli
 
 **Development:**
 ```bash
-# Run specific crate tests
-cargo test -p media-core
+# Run specific crate tests (with nextest)
+cargo nextest run -p media-core
 
-# Run all workspace tests
-cargo test --workspace
+# Run all workspace tests (nextest for speed)
+cargo nextest run --workspace
+
+# Also run doctests (nextest doesn't run doctests)
+cargo test --doc --workspace
 
 # Run specific test
-cargo test test_parse_exif_metadata
+cargo nextest run test_parse_exif_metadata
 
 # Watch mode (requires cargo-watch)
-cargo watch -x test
+cargo watch -x "nextest run"
 
 # Run with verbose output
-cargo test -- --nocapture
+cargo nextest run --workspace --no-capture
 ```
 
 **Building:**
@@ -772,11 +900,17 @@ cargo doc --workspace --no-deps
 
 **Testing:**
 ```bash
-# Run unit tests only
-cargo test --lib
+# Run unit tests only (with nextest)
+cargo nextest run --lib
 
 # Run integration tests only
-cargo test --test '*'
+cargo nextest run --test '*'
+
+# Run doctests (nextest doesn't run doctests)
+cargo test --doc --workspace
+
+# Run ALL tests (nextest + doctests)
+cargo nextest run --workspace && cargo test --doc --workspace
 
 # Run benchmarks
 cargo bench -p media-core
@@ -785,7 +919,7 @@ cargo bench -p media-core
 cargo tarpaulin --workspace --out Html
 
 # Run with specific features
-cargo test --features "exif xmp"
+cargo nextest run --features "exif xmp"
 ```
 
 **Performance:**

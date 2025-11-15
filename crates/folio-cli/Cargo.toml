@@ -19,6 +19,9 @@ folio-ingest = { path = "../folio-ingest" }
 clap.workspace = true
 indicatif.workspace = true
 
+# Date/time
+chrono.workspace = true
+
 # Error handling
 anyhow.workspace = true
 

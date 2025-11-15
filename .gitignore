@@ -4,6 +4,10 @@ Cargo.lock
 **/*.rs.bk
 *.pdb
 
+# Nextest artifacts
+.nextest/
+target/nextest/
+
 # Test data - NEVER commit real family media
 test-data/personal/
 test-data/samples/
