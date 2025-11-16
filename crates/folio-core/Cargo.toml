@@ -32,6 +32,21 @@ chrono.workspace = true
 # Logging
 tracing.workspace = true
 
+# Web server and WebSocket
+axum.workspace = true
+tokio.workspace = true
+tokio-tungstenite.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+
+# Base64 encoding
+base64.workspace = true
+
+# Browser automation
+playwright-rs.workspace = true
+playwright-core.workspace = true
+
 [dev-dependencies]
 tempfile.workspace = true
 proptest.workspace = true
+tokio-test = "0.4"

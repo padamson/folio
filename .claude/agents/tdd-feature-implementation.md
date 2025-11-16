@@ -384,6 +384,196 @@ A feature is complete when:
 - ✅ Implementation plan slice marked complete (if applicable)
 - ✅ Documentation updated via docs agent
 
+## Playwright-Rust Integration
+
+**IMPORTANT**: Folio is a proving ground for playwright-rust. When working with browser E2E tests, be proactive about improving playwright-rust rather than just working around limitations.
+
+### Philosophy
+
+- **Drive playwright-rust forward** - Every gap is an opportunity to improve the library
+- **No silent workarounds** - Create issues first, then implement temporary solutions
+- **Upstream first** - Compare with playwright (JS/Python) behavior
+- **Document everything** - Link back to issues so fixes can be integrated later
+
+### When to Create playwright-rust Issues
+
+Create issues for:
+1. **Missing APIs** - Feature exists in playwright but not playwright-rust
+2. **Bugs** - Incorrect behavior, panics, crashes
+3. **API Design** - Unergonomic or un-idiomatic Rust APIs
+4. **Documentation** - Missing examples, unclear rustdoc
+5. **Performance** - Slow operations, memory issues
+
+### Workflow
+
+When you encounter a playwright-rust limitation during TDD:
+
+**Red Phase:**
+```
+1. Document the gap (what's missing, what you need)
+2. Call GitHub Issue Creator agent:
+
+   Task(
+     subagent_type="github-issue-creator",
+     description="Create playwright-rust issue for {missing feature}",
+     prompt="""
+     Create issue for playwright-rust limitation encountered in Folio.
+
+     **Issue Type:** [missing-feature|bug|api-design|documentation|performance]
+
+     **Context from Folio:**
+     - Slice/Feature: {e.g., "Slice 3c - Browser Preview E2E"}
+     - Test: {e.g., "test_browser_preview_batch_cards"}
+     - Use Case: {e.g., "Need to highlight elements for visual debugging"}
+
+     **What You Tried:**
+     ```rust
+     // Code that doesn't work
+     let card = page.locator(".batch-card").await;
+     card.highlight().await?; // Method doesn't exist
+     ```
+
+     **Error/Output:**
+     ```
+     error[E0599]: no method named `highlight` found for struct `Locator`
+     ```
+
+     **Expected Behavior:**
+     In playwright (JS), this works:
+     ```javascript
+     await page.locator('.batch-card').highlight();
+     ```
+
+     **Impact:**
+     - Blocking: [Yes/No]
+     - Priority: [Critical|High|Medium|Low]
+     - Workaround: [Describe if you have one]
+
+     **Proposed Solution:**
+     ```rust
+     // Ideal playwright-rust API
+     impl Locator {
+         pub async fn highlight(&self) -> Result<()> {
+             // Highlight element in browser for debugging
+         }
+     }
+     ```
+     """
+   )
+
+3. Add TODO comment in test with issue link
+4. Implement workaround OR skip test with #[ignore]
+5. Document workaround with issue reference
+```
+
+**Green Phase:**
+```
+1. If bug discovered while implementing, create issue immediately
+2. Document workaround in code with issue link:
+   // TODO: Replace with proper API when playwright-rust#42 is fixed
+   // Workaround: Using JavaScript evaluation instead
+3. Add test case for correct behavior (when fixed)
+```
+
+**Refactor Phase:**
+```
+1. Review code for playwright-rust API improvements
+2. Create api-design issues for ergonomic improvements
+3. Link to issues in code comments
+```
+
+### Example: Missing Feature
+
+**Scenario:** Need `Locator.highlight()` for visual debugging in E2E tests.
+
+**Step 1:** Create Issue
+```
+Task(subagent_type="github-issue-creator", ...)
+# Returns: https://github.com/padamson/playwright-rust/issues/42
+```
+
+**Step 2:** Add TODO and Workaround
+```rust
+#[tokio::test]
+async fn test_browser_preview_batch_cards() {
+    let card = page.locator(".batch-card").await;
+
+    // TODO: Use card.highlight().await when playwright-rust#42 is implemented
+    // Workaround: Skip visual debugging for now
+    // GitHub Issue: https://github.com/padamson/playwright-rust/issues/42
+
+    // Continue with test using alternative verification
+    let text = card.text_content().await?;
+    assert!(text.contains("thanksgiving"));
+}
+```
+
+**Step 3:** Mark in Definition of Done
+- ✅ Test passes (with workaround)
+- ✅ Issue created: playwright-rust#42
+- ✅ Workaround documented
+- ✅ TODO added for future fix
+
+### Example: Bug in Existing API
+
+**Scenario:** `Page.goto()` ignores timeout option.
+
+**Step 1:** Create Bug Issue
+```
+Task(subagent_type="github-issue-creator", ...)
+# Returns: https://github.com/padamson/playwright-rust/issues/43
+```
+
+**Step 2:** Document Workaround
+```rust
+// BUG: Page.goto() ignores custom timeout (playwright-rust#43)
+// Workaround: Using default timeout for now
+// Expected: Should timeout after 5s, actually times out after 30s
+page.goto(&url, Some(GotoOptions { timeout: Some(5000) })).await?;
+```
+
+### Example: API Design Improvement
+
+**Scenario:** `BrowserContextOptions` is verbose, could use builder pattern.
+
+**Step 1:** Create API Design Issue
+```
+Task(subagent_type="github-issue-creator", ...)
+# Returns: https://github.com/padamson/playwright-rust/issues/44
+```
+
+**Step 2:** Use Current API
+```rust
+// NOTE: Using struct initialization for now
+// API Design Issue: Builder pattern would be more ergonomic (playwright-rust#44)
+let opts = BrowserContextOptions {
+    viewport: Some(ViewportSize { width: 1280, height: 720 }),
+    ..Default::default()
+};
+```
+
+### Success Metrics
+
+You've successfully handled playwright-rust integration when:
+
+- ✅ **No silent workarounds** - Every limitation has an issue
+- ✅ **Issues are actionable** - Clear reproduction, expected behavior, proposed solution
+- ✅ **Upstream comparison** - Documented what playwright (JS/Python) does
+- ✅ **Workarounds documented** - Future devs can find the issue and fix
+- ✅ **Tests still pass** - Workaround keeps TDD green
+- ✅ **Folio progresses** - playwright-rust issues don't block Folio development
+
+### Integration with GitHub Issue Creator
+
+The GitHub Issue Creator agent will:
+1. Search for duplicate issues
+2. Create well-formatted issue with template
+3. Apply appropriate labels (`folio-driven`, `missing-feature`, etc.)
+4. Return issue URL for documentation
+5. Track all issues in playwright-rust repo
+
+**Remember:** Folio's role is to drive playwright-rust forward. Every issue makes playwright-rust better for the entire Rust community.
+
 ## Documentation Handoff
 
 **IMPORTANT**: At the end of feature implementation, ALWAYS invoke the Docs Agent to update documentation:

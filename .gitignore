@@ -11,6 +11,9 @@ target/nextest/
 # Test data - NEVER commit real family media
 test-data/personal/
 test-data/samples/
+test-data/manual/
+test-data/generated/
+test-data/examples/
 *.personal.*
 *.family.*
 

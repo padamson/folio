@@ -41,6 +41,22 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-cargo-
 
+    - name: Cache Playwright Drivers (Linux/macOS)
+      if: runner.os != 'Windows'
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/playwright-rust/drivers
+          ~/Library/Caches/playwright-rust/drivers
+        key: ${{ runner.os }}-playwright-drivers-1.56.1-v1
+
+    - name: Cache Playwright Drivers (Windows)
+      if: runner.os == 'Windows'
+      uses: actions/cache@v4
+      with:
+        path: ~\AppData\Local\playwright-rust\drivers
+        key: ${{ runner.os }}-playwright-drivers-1.56.1-v1
+
     # Generate test fixtures (they're not committed)
     - name: Install ImageMagick (Ubuntu)
       if: runner.os == 'Linux'
@@ -77,6 +93,24 @@ jobs:
     - name: Build
       run: cargo build --verbose
 
+    - name: Install Playwright browsers (Linux)
+      if: runner.os == 'Linux'
+      run: ~/.cache/playwright-rust/drivers/playwright-1.56.1-linux/node ~/.cache/playwright-rust/drivers/playwright-1.56.1-linux/package/cli.js install chromium firefox webkit --with-deps
+
+    - name: Install Playwright browsers (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        if [ -d "$HOME/Library/Caches/playwright-rust/drivers/playwright-1.56.1-mac-arm64" ]; then
+          "$HOME/Library/Caches/playwright-rust/drivers/playwright-1.56.1-mac-arm64/node" "$HOME/Library/Caches/playwright-rust/drivers/playwright-1.56.1-mac-arm64/package/cli.js" install chromium firefox webkit
+        else
+          "$HOME/Library/Caches/playwright-rust/drivers/playwright-1.56.1-mac/node" "$HOME/Library/Caches/playwright-rust/drivers/playwright-1.56.1-mac/package/cli.js" install chromium firefox webkit
+        fi
+
+    - name: Install Playwright browsers (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        & "$env:LOCALAPPDATA\playwright-rust\drivers\playwright-1.56.1-win32_x64\node.exe" "$env:LOCALAPPDATA\playwright-rust\drivers\playwright-1.56.1-win32_x64\package\cli.js" install chromium firefox webkit
+
     - name: Run tests (Linux/macOS)
       if: runner.os != 'Windows'
       run: cargo nextest run --profile ci --workspace
@@ -91,32 +125,3 @@ jobs:
 
     - name: Generate documentation
       run: cargo doc --no-deps --workspace
-
-  # Separate job for integration tests (only on Linux, with network)
-  integration-test:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: stable
-
-    - name: Install tools for test fixtures
-      run: sudo apt-get update && sudo apt-get install -y imagemagick libimage-exiftool-perl ffmpeg
-
-    - name: Generate test fixtures
-      run: ./scripts/setup-test-fixtures.sh
-
-    - name: Install cargo-nextest
-      uses: taiki-e/install-action@v2
-      with:
-        tool: cargo-nextest
-
-    - name: Run integration tests
-      run: cargo nextest run --workspace -- --ignored
-      continue-on-error: true  # Don't fail CI if network tests fail

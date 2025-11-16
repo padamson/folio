@@ -49,6 +49,20 @@ chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+# Web server and WebSocket
+axum = { version = "0.8.7", features = ["ws"] }
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.21"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "cors"] }
+
+# Base64 encoding for embedded thumbnails
+base64 = "0.21"
+
+# Browser automation
+playwright-rs = "0.6.1"
+playwright-core = "0.6.1"
+
 # Testing
 assert_cmd = "2.0"
 assert_fs = "1.1"

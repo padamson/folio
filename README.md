@@ -60,16 +60,21 @@ folio --help
 
 ## Current Status
 
-**Phase 0: Foundation** (Current)
-- [x] Architecture Decision Record (ADR-0001)
-- [x] Rust workspace setup
-- [ ] XMP compatibility proof-of-concept
-- [ ] Define folder structure conventions
+**Phase 1: Backlog Ingestion** (In Progress - Slices 1-3c Complete)
 
-**Phase 1: Backlog Clearance** (Next - 2-4 weeks)
-- [ ] SD card → archive ingestion
-- [ ] Hash-based deduplication
-- [ ] EXIF extraction → XMP sidecar generation
+Completed:
+- [x] Media discovery and copy (scan directories, hash-based deduplication)
+- [x] EXIF timestamp extraction and date-based folder organization
+- [x] Temporal batch grouping (group photos by time gaps)
+- [x] Interactive batch naming workflow
+- [x] Live browser preview dashboard with real-time WebSocket updates
+
+Next:
+- [ ] XMP sidecar metadata generation
+- [ ] Metadata merging strategies
+- [ ] User confirmation and safety checks
+
+See [implementation plan](./docs/implementation-plans/001-backlog-ingestion-plan.md) for details.
 
 ## Development
 
@@ -84,6 +89,34 @@ cargo build
 ```bash
 cargo test --workspace
 ```
+
+**First-time setup for browser tests:**
+
+Browser preview tests require Playwright browsers. After your first `cargo build`, install them once:
+
+```bash
+# Linux
+~/.cache/playwright-rust/drivers/playwright-1.56.1-linux/node \
+  ~/.cache/playwright-rust/drivers/playwright-1.56.1-linux/package/cli.js \
+  install chromium firefox webkit --with-deps
+
+# macOS (Intel)
+~/Library/Caches/playwright-rust/drivers/playwright-1.56.1-mac/node \
+  ~/Library/Caches/playwright-rust/drivers/playwright-1.56.1-mac/package/cli.js \
+  install chromium firefox webkit
+
+# macOS (ARM64)
+~/Library/Caches/playwright-rust/drivers/playwright-1.56.1-mac-arm64/node \
+  ~/Library/Caches/playwright-rust/drivers/playwright-1.56.1-mac-arm64/package/cli.js \
+  install chromium firefox webkit
+
+# Windows (PowerShell)
+& "$env:LOCALAPPDATA\playwright-rust\drivers\playwright-1.56.1-win32_x64\node.exe" `
+  "$env:LOCALAPPDATA\playwright-rust\drivers\playwright-1.56.1-win32_x64\package\cli.js" `
+  install chromium firefox webkit
+```
+
+This downloads ~500MB of browser binaries to your OS cache directory (one-time per machine).
 
 ### Run CLI
 

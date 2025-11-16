@@ -29,9 +29,16 @@ anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 
+# Browser automation
+playwright-rs.workspace = true
+tokio.workspace = true
+
 [dev-dependencies]
 assert_cmd.workspace = true
 assert_fs.workspace = true
 predicates.workspace = true
 tempfile.workspace = true
 walkdir.workspace = true
+playwright-rs.workspace = true
+tokio.workspace = true
+blake3.workspace = true
