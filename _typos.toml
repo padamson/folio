@@ -1,0 +1,6 @@
+# Configuration for the typos pre-commit hook (crate-ci/typos).
+
+[default.extend-words]
+# "froms" is legitimate: the macOS Spotlight attribute kMDItemWhereFroms
+# (download origins), which folio's macOS metadata harvest reads.
+froms = "froms"
