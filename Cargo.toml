@@ -5,6 +5,7 @@ members = [
     "crates/folio-core",
     "crates/folio-cli",
     "crates/folio-ingest",
+    "crates/folio-examples",
     # Future crates:
     # "crates/folio-catalog",
     # "crates/folio-processor",
@@ -37,7 +38,7 @@ camino = "1.1"  # UTF-8 paths
 
 # Image processing and metadata
 image = "0.25"
-kamadak-exif = "0.5"  # EXIF reading
+kamadak-exif = "0.6"  # EXIF reading
 
 # Hashing (for deduplication)
 blake3 = "1.5"
@@ -60,8 +61,7 @@ tower-http = { version = "0.6", features = ["fs", "cors"] }
 base64 = "0.21"
 
 # Browser automation
-playwright-rs = "0.6.1"
-playwright-core = "0.6.1"
+playwright-rs = "0.7.0"
 
 # Testing
 assert_cmd = "2.0"
@@ -81,3 +81,14 @@ opt-level = 0
 
 [profile.test]
 opt-level = 0
+
+# Patch playwright-rust for local development/testing
+# Uncomment to use a development version of playwright-rust:
+#
+# Option 1: Use local clone of playwright-rust repository (workspace)
+# [patch.crates-io]
+# playwright-rs = { path = "../playwright-rust/crates/playwright" }
+#
+# Option 2: Use git version (specific branch/commit)
+# [patch.crates-io]
+# playwright-rs = { git = "https://github.com/microsoft/playwright-rust", branch = "main" }

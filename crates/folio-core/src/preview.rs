@@ -15,8 +15,7 @@ use axum::{
 };
 use image::codecs::jpeg::JpegEncoder;
 use image::{DynamicImage, GenericImageView, ImageReader};
-use playwright_core::protocol::Browser;
-use playwright_rs::Playwright;
+use playwright_rs::{Browser, Playwright};
 use std::io::Cursor;
 use std::net::SocketAddr;
 use std::path::Path;

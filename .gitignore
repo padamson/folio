@@ -17,6 +17,9 @@ test-data/examples/
 *.personal.*
 *.family.*
 
+# Example data - Downloaded from releases, not committed
+example-data/
+
 # Build artifacts
 /dist/
 /build/
@@ -60,3 +63,5 @@ secrets/
 # OS
 Thumbs.db
 .DS_Store
+
+.env

@@ -268,7 +268,7 @@ pub fn group_by_temporal_proximity(
         .collect();
 
     // Sort by timestamp
-    sorted_items.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    sorted_items.sort_by_key(|a| a.timestamp);
 
     if sorted_items.is_empty() {
         return Vec::new();

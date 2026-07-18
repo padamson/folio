@@ -44,7 +44,6 @@ base64.workspace = true
 
 # Browser automation
 playwright-rs.workspace = true
-playwright-core.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

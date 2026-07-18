@@ -521,7 +521,18 @@ async fn test_browser_updates_on_batch_name() {
 
 ### Slice 3d: AI-Generated Example Data with Version Control
 
-**Status:** Not Started
+**Status:** In Progress (2026-07-18 review). The `folio-examples` crate and both
+binaries exist with green tests. Remaining before complete: harden
+`extract_tarball` (extract to temp + verify a checksum with the already-declared
+`sha2`, then move into place), write video metadata (CreateDate/Make/Model via
+exiftool) so videos participate in temporal batching, fail fast when `exiftool`
+is missing instead of silently generating timestamp-less photos, regenerate
+`example-data/` with the corrected batch-2 timestamps (19:30 start; earlier
+data used 18:00, under the 2h gap threshold), publish the
+`folio-example-data` repo + `v0.1.0` release, and reconcile
+`docs/technical/example-data-strategy.md` (Replicate/`--story`/`--preview` and
+the story.slice versioning scheme are stale — code uses OpenAI/ComfyUI and
+tags matching the folio workspace version).
 
 **User Value:** Realistic, shareable example data for demonstrating complete ingestion workflows. Developers and users can download pre-generated AI media to test features without requiring real family photos.
 
@@ -928,7 +939,7 @@ cargo run --bin folio -- ingest \
 | Slice 3a: Agent Config & Nextest | Infrastructure | None | ✅ Completed | <1 day | Infrastructure slice, supports future development |
 | Slice 3b: Temporal Batching & Naming | Must Have | Slice 2 | ✅ Completed | ~2 days | Terminal-based workflow, interactive prompts working perfectly |
 | Slice 3c: Live Browser Preview | Must Have | Slice 3b + playwright-rust | ✅ Completed | ~2 days | WebSocket real-time updates, auto-reconnect, visual feedback |
-| Slice 3d: AI Example Data | Should Have | Slice 3c | Not Started | Est: 3-4 days | AI generation + version control infrastructure |
+| Slice 3d: AI Example Data | Should Have | Slice 3c | In Progress | Est: 3-4 days | Crate + binaries built, tests green; remaining items listed in slice section |
 | Slice 4: Metadata & XMP | Must Have | Slice 1 | Not Started | Est: 4-5 days | |
 | Slice 5: Metadata Merging | Should Have | Slice 4 | Not Started | Est: 2-3 days | |
 | Slice 6: Confirmations & Safety | Must Have | Slice 1-4 | Not Started | Est: 2-3 days | |
