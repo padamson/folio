@@ -1,0 +1,36 @@
+# cargo-mutants configuration
+# Docs: https://mutants.rs/
+#
+# NOTE ON LOCATION: cargo-mutants (25.x) reads `.cargo/mutants.toml`. A
+# `.mutants.toml` at the repo root is silently ignored, so this file lives
+# under `.cargo/` on purpose.
+
+# Use nextest — much faster than `cargo test`.
+test_tool = "nextest"
+
+# Run the whole workspace's tests against each mutant. cargo-mutants defaults
+# to the mutated package's own tests, but the tests that kill a folio-core
+# mutant often live a layer out (folio-cli's ingest integration tests).
+test_workspace = true
+
+# Browser E2E tests are the end-to-end gate, not a mutant-killer: they need
+# installed Playwright browsers and a real launch per mutant, which turns an
+# in-diff run from minutes into hours. Scope them out with a nextest filter
+# rather than narrowing to --lib.
+additional_cargo_test_args = ["-E", "not binary(browser_preview_test)"]
+
+# Mutate only the hand-written logic crates. folio-cli is a driving adapter
+# (covered by its integration/E2E tests at a layer where mutation yields
+# surviving-mutant noise) and folio-examples is dataset-generation tooling.
+# folio-ingest joins the list when it grows past its stub.
+examine_globs = [
+    "crates/folio-core/src/**/*.rs",
+    "crates/folio-ingest/src/**/*.rs",
+]
+
+# Exclude generated code once panschema output lands (story 002): generated
+# modules are not hand-written logic — the schema is the source of truth and
+# the generator is tested upstream.
+exclude_globs = [
+    "crates/*/src/generated/**/*.rs",
+]

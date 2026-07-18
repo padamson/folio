@@ -65,3 +65,6 @@ Thumbs.db
 .DS_Store
 
 .env
+
+# Mutation testing output
+mutants.out*/
