@@ -169,6 +169,16 @@ As a family viewer, I open a link on my tablet and browse the archive.
   doubling as probes, graceful shutdown on SIGTERM, code-first OpenAPI
   (utoipa + Scalar), and the composition-root-before-runtime `main` shape if
   a blocking DB adapter ever appears.
+- Frontend framework decision (needs an ADR when this starts): adopting
+  `theoria` (Storybook-style component gallery with a `#[story]` macro, live
+  controls, autodocs, hot reload) and `dokime` (native SSR render + assert
+  component tests, no browser) implies Leptos 0.8 + Trunk. Both are incubating
+  in `slp`, deliberately dependency-clean with a documented `git subtree
+  split` extraction plan; don't extract early — consume them when this story
+  starts, pinned like the other in-development tools.
+- Component-development loop if adopted (the documented four layers): pure
+  logic with native unit tests → component tests in dokime → visual iteration
+  in the theoria gallery → playwright-rust E2E as the end-to-end gate.
 
 ## 009 — Apple Photos bridge
 
