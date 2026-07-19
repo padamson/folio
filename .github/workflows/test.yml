@@ -14,6 +14,11 @@ jobs:
   test:
     name: Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # Pin where playwright-rs assembles its driver (default is Cargo's OUT_DIR
+    # under target/, which is awkward to locate and cache). Set for every step
+    # so build, browser-install, and the test run all use the same driver.
+    env:
+      PLAYWRIGHT_DRIVER_CACHE_DIR: ${{ github.workspace }}/.playwright-driver
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -44,22 +49,12 @@ jobs:
     # playwright-rs is pinned to git main, so the bundled driver version
     # floats. Key the driver cache on Cargo.lock (which pins the exact
     # playwright-rs commit) so a bump invalidates the cache and build.rs
-    # reassembles the matching driver.
-    - name: Cache Playwright Drivers (Linux/macOS)
-      if: runner.os != 'Windows'
+    # reassembles the matching driver into PLAYWRIGHT_DRIVER_CACHE_DIR.
+    - name: Cache Playwright driver
       uses: actions/cache@v4
       with:
-        path: |
-          ~/.cache/playwright-rust/drivers
-          ~/Library/Caches/playwright-rust/drivers
-        key: ${{ runner.os }}-playwright-drivers-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Cache Playwright Drivers (Windows)
-      if: runner.os == 'Windows'
-      uses: actions/cache@v4
-      with:
-        path: ~\AppData\Local\playwright-rust\drivers
-        key: ${{ runner.os }}-playwright-drivers-${{ hashFiles('**/Cargo.lock') }}
+        path: .playwright-driver
+        key: ${{ runner.os }}-playwright-driver-${{ hashFiles('**/Cargo.lock') }}
 
     # Generate test fixtures (they're not committed)
     - name: Install ImageMagick (Ubuntu)
@@ -94,19 +89,25 @@ jobs:
     - name: Run clippy
       run: cargo clippy --all-targets --all-features -- -D warnings
 
+    # --all-targets compiles the test targets too, which pulls in the
+    # playwright-rs dev-dependency and runs its build.rs — assembling the
+    # driver into PLAYWRIGHT_DRIVER_CACHE_DIR before the browser-install step.
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --workspace --all-targets --verbose
 
-    # Derive the assembled driver directory rather than hardcoding a version
-    # (it floats with the git-main pin). Only chromium is needed — that is the
-    # only browser folio's E2E tests launch.
+    # The driver assembled into PLAYWRIGHT_DRIVER_CACHE_DIR by the build above;
+    # its version floats with the git-main pin, so glob for it rather than
+    # hardcoding. Only chromium is needed — the only browser folio's E2E tests
+    # launch. Invoking the driver's bundled node + cli.js is what the crate's
+    # own install CLI does internally (folio can't enable its `cli` feature on
+    # an external dependency).
     - name: Install Playwright browsers (Linux)
       if: runner.os == 'Linux'
       run: |
-        DRIVER_DIR=$(ls -d ~/.cache/playwright-rust/drivers/playwright-*-linux 2>/dev/null | head -1)
+        DRIVER_DIR=$(ls -d "$PLAYWRIGHT_DRIVER_CACHE_DIR"/playwright-*-linux 2>/dev/null | head -1)
         if [ -z "$DRIVER_DIR" ]; then
-          echo "No playwright-rust driver assembled under ~/.cache/playwright-rust/drivers" >&2
-          ls -la ~/.cache/playwright-rust/drivers 2>/dev/null || true
+          echo "No playwright-rust driver assembled under $PLAYWRIGHT_DRIVER_CACHE_DIR" >&2
+          ls -la "$PLAYWRIGHT_DRIVER_CACHE_DIR" 2>/dev/null || true
           exit 1
         fi
         echo "Using driver at $DRIVER_DIR"
@@ -115,10 +116,10 @@ jobs:
     - name: Install Playwright browsers (macOS)
       if: runner.os == 'macOS'
       run: |
-        DRIVER_DIR=$(ls -d "$HOME/Library/Caches/playwright-rust/drivers/"playwright-*-mac* 2>/dev/null | head -1)
+        DRIVER_DIR=$(ls -d "$PLAYWRIGHT_DRIVER_CACHE_DIR"/playwright-*-mac* 2>/dev/null | head -1)
         if [ -z "$DRIVER_DIR" ]; then
-          echo "No playwright-rust driver assembled under $HOME/Library/Caches/playwright-rust/drivers" >&2
-          ls -la "$HOME/Library/Caches/playwright-rust/drivers" 2>/dev/null || true
+          echo "No playwright-rust driver assembled under $PLAYWRIGHT_DRIVER_CACHE_DIR" >&2
+          ls -la "$PLAYWRIGHT_DRIVER_CACHE_DIR" 2>/dev/null || true
           exit 1
         fi
         echo "Using driver at $DRIVER_DIR"
@@ -127,9 +128,9 @@ jobs:
     - name: Install Playwright browsers (Windows)
       if: runner.os == 'Windows'
       run: |
-        $driverDir = Get-ChildItem "$env:LOCALAPPDATA\playwright-rust\drivers" -Directory -Filter "playwright-*-win32_x64" -ErrorAction SilentlyContinue | Select-Object -First 1
+        $driverDir = Get-ChildItem "$env:PLAYWRIGHT_DRIVER_CACHE_DIR" -Directory -Filter "playwright-*-win32_x64" -ErrorAction SilentlyContinue | Select-Object -First 1
         if (-not $driverDir) {
-          Write-Error "No playwright-rust driver assembled under $env:LOCALAPPDATA\playwright-rust\drivers"
+          Write-Error "No playwright-rust driver assembled under $env:PLAYWRIGHT_DRIVER_CACHE_DIR"
           exit 1
         }
         Write-Host "Using driver at $($driverDir.FullName)"
