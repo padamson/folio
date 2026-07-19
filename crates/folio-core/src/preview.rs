@@ -1344,4 +1344,79 @@ mod tests {
             "HTML should have thumbnail class"
         );
     }
+
+    fn write_test_image(dir: &std::path::Path, name: &str, w: u32, h: u32) -> std::path::PathBuf {
+        let path = dir.join(name);
+        image::RgbImage::from_pixel(w, h, image::Rgb([120, 90, 60]))
+            .save(&path)
+            .unwrap();
+        path
+    }
+
+    fn thumbnail_dimensions(jpeg_bytes: &[u8]) -> (u32, u32) {
+        let img = image::load_from_memory(jpeg_bytes).unwrap();
+        img.dimensions()
+    }
+
+    #[test]
+    fn test_generate_thumbnail_downscales_large_image() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = write_test_image(dir.path(), "large.png", 800, 600);
+
+        let bytes = generate_thumbnail(&path, 100).unwrap();
+        let (w, h) = thumbnail_dimensions(&bytes);
+        assert!(
+            w <= 100 && h <= 100,
+            "large image must downscale, got {}x{}",
+            w,
+            h
+        );
+        assert!(
+            w == 100 || h == 100,
+            "downscale should fill max_size on one edge"
+        );
+    }
+
+    #[test]
+    fn test_generate_thumbnail_downscales_when_only_one_edge_exceeds() {
+        // Wide-but-short: width over max_size, height under. The resize
+        // condition is an OR — either edge exceeding triggers downscale.
+        let dir = tempfile::tempdir().unwrap();
+        let path = write_test_image(dir.path(), "wide.png", 300, 50);
+
+        let bytes = generate_thumbnail(&path, 100).unwrap();
+        let (w, h) = thumbnail_dimensions(&bytes);
+        assert!(
+            w <= 100,
+            "wide image must downscale its width, got {}x{}",
+            w,
+            h
+        );
+    }
+
+    #[test]
+    fn test_generate_thumbnail_downscales_tall_image() {
+        // Tall-but-narrow: height over max_size, width under.
+        let dir = tempfile::tempdir().unwrap();
+        let path = write_test_image(dir.path(), "tall.png", 50, 300);
+
+        let bytes = generate_thumbnail(&path, 100).unwrap();
+        let (w, h) = thumbnail_dimensions(&bytes);
+        assert!(
+            h <= 100,
+            "tall image must downscale its height, got {}x{}",
+            w,
+            h
+        );
+    }
+
+    #[test]
+    fn test_generate_thumbnail_does_not_upscale_small_image() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = write_test_image(dir.path(), "small.png", 40, 30);
+
+        let bytes = generate_thumbnail(&path, 100).unwrap();
+        let (w, h) = thumbnail_dimensions(&bytes);
+        assert_eq!((w, h), (40, 30), "small image must keep its dimensions");
+    }
 }

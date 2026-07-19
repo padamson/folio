@@ -682,4 +682,103 @@ mod tests {
     fn test_validate_batch_name_invalid_only_underscores() {
         assert!(validate_batch_name("___").is_err());
     }
+
+    #[test]
+    fn test_media_type_predicates_are_exclusive() {
+        let photo = MediaType::Photo(PhotoFormat::Jpeg);
+        assert!(photo.is_photo());
+        assert!(!photo.is_video());
+
+        let video = MediaType::Video(VideoFormat::Mov);
+        assert!(video.is_video());
+        assert!(!video.is_photo());
+    }
+
+    #[test]
+    fn test_group_by_temporal_proximity_gap_equal_to_threshold_stays_one_batch() {
+        // The split rule is gap STRICTLY GREATER than the threshold: a gap of
+        // exactly the threshold keeps items in the same batch.
+        let timestamp1 = DateTime::parse_from_rfc3339("2024-11-04T14:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let timestamp2 = DateTime::parse_from_rfc3339("2024-11-04T16:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc); // exactly 2 hours later
+
+        let items = vec![
+            MediaItem {
+                path: PathBuf::from("photo1.jpg"),
+                hash: blake3::hash(b"boundary1"),
+                size: 1000,
+                media_type: MediaType::Photo(PhotoFormat::Jpeg),
+                timestamp: Some(timestamp1),
+                folder_path: generate_folder_path(timestamp1),
+            },
+            MediaItem {
+                path: PathBuf::from("photo2.jpg"),
+                hash: blake3::hash(b"boundary2"),
+                size: 2000,
+                media_type: MediaType::Photo(PhotoFormat::Jpeg),
+                timestamp: Some(timestamp2),
+                folder_path: generate_folder_path(timestamp2),
+            },
+        ];
+
+        let batches = group_by_temporal_proximity(&items, Duration::hours(2));
+        assert_eq!(batches.len(), 1, "gap == threshold must not split");
+
+        // One second past the threshold does split
+        let timestamp3 = timestamp1 + Duration::hours(2) + Duration::seconds(1);
+        let items2 = vec![
+            items[0].clone(),
+            MediaItem {
+                timestamp: Some(timestamp3),
+                folder_path: generate_folder_path(timestamp3),
+                ..items[1].clone()
+            },
+        ];
+        let batches2 = group_by_temporal_proximity(&items2, Duration::hours(2));
+        assert_eq!(batches2.len(), 2, "gap > threshold must split");
+    }
+
+    #[test]
+    fn test_hash_file_distinguishes_content() {
+        use std::io::Write;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path_a = dir.path().join("a.bin");
+        let path_b = dir.path().join("b.bin");
+        let path_c = dir.path().join("c.bin");
+
+        // Larger than the 8 KiB read buffer so the loop iterates more than
+        // once, and differing only in the final byte.
+        let mut content_a = vec![0xAAu8; 20_000];
+        let content_b = content_a.clone();
+        *content_a.last_mut().unwrap() = 0xBB;
+
+        std::fs::File::create(&path_a)
+            .unwrap()
+            .write_all(&content_a)
+            .unwrap();
+        std::fs::File::create(&path_b)
+            .unwrap()
+            .write_all(&content_b)
+            .unwrap();
+        std::fs::File::create(&path_c)
+            .unwrap()
+            .write_all(&content_b)
+            .unwrap();
+
+        let hash_a = hash_file(&path_a).unwrap();
+        let hash_b = hash_file(&path_b).unwrap();
+        let hash_c = hash_file(&path_c).unwrap();
+
+        assert_ne!(hash_a, hash_b, "different content must hash differently");
+        assert_eq!(hash_b, hash_c, "identical content must hash identically");
+        assert_eq!(
+            hash_b,
+            blake3::hash(&content_b),
+            "hash must cover the full file content"
+        );
+    }
 }
