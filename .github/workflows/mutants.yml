@@ -52,6 +52,12 @@ jobs:
         with:
           tool: cargo-mutants
 
+      # folio-generator's metadata/video tests shell out to these and skip
+      # without them — which would let their mutants survive the gate. Install
+      # so those tests actually run per mutant.
+      - name: Install exiftool and ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y libimage-exiftool-perl ffmpeg
+
       # Compute the right diff base for this trigger.
       # - pull_request: merge base against the PR target branch
       # - push: the `before` SHA of the push (the parent of `after`).
@@ -111,6 +117,12 @@ jobs:
         uses: taiki-e/install-action@4684b8405694ae9dd42c9f39ba901a70ae83f4a3 # v2
         with:
           tool: cargo-mutants
+
+      # folio-generator's metadata/video tests shell out to these and skip
+      # without them — which would let their mutants survive the gate. Install
+      # so those tests actually run per mutant.
+      - name: Install exiftool and ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y libimage-exiftool-perl ffmpeg
 
       # Scoping lives in `.cargo/mutants.toml` (examine/exclude globs).
       - name: Run mutation testing
