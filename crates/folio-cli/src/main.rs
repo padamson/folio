@@ -241,7 +241,13 @@ fn prompt_for_batch_name(
         io::stdout().flush()?;
 
         let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
+        let bytes = io::stdin().read_line(&mut input)?;
+        // read_line returns 0 at end of input (Ctrl-D, or exhausted piped
+        // stdin). Without this, an EOF with no valid name loops forever
+        // re-prompting against a stream that will never yield more.
+        if bytes == 0 {
+            anyhow::bail!("reached end of input before a valid batch name was entered");
+        }
         let batch_name = input.trim().to_string();
 
         // Validate batch name

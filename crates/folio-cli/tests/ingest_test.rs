@@ -604,3 +604,36 @@ fn test_ingest_interactive_mode_with_invalid_then_valid_input() {
     }
     assert!(found_file, "File with valid-name should exist in archive");
 }
+
+#[test]
+fn test_ingest_interactive_eof_without_valid_name_errors() {
+    // A batch that needs naming, but stdin closes (EOF) after only an invalid
+    // entry — the prompt must give up with an error, not loop forever.
+    let source = assert_fs::TempDir::new().unwrap();
+    let archive = assert_fs::TempDir::new().unwrap();
+
+    let fixtures_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("test-data/fixtures");
+    fs::copy(
+        fixtures_dir.join("minimal.jpg"),
+        source.path().join("photo.jpg"),
+    )
+    .unwrap();
+
+    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("folio"));
+    cmd.arg("ingest")
+        .arg("--source")
+        .arg(source.path())
+        .arg("--dest")
+        .arg(archive.path())
+        .arg("--headless")
+        // One invalid name, then the stream ends (no trailing valid name).
+        .write_stdin("invalid name\n")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("end of input"));
+}
