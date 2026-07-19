@@ -41,6 +41,10 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-cargo-
 
+    # playwright-rs is pinned to git main, so the bundled driver version
+    # floats. Key the driver cache on Cargo.lock (which pins the exact
+    # playwright-rs commit) so a bump invalidates the cache and build.rs
+    # reassembles the matching driver.
     - name: Cache Playwright Drivers (Linux/macOS)
       if: runner.os != 'Windows'
       uses: actions/cache@v4
@@ -48,14 +52,14 @@ jobs:
         path: |
           ~/.cache/playwright-rust/drivers
           ~/Library/Caches/playwright-rust/drivers
-        key: ${{ runner.os }}-playwright-drivers-1.56.1-v1
+        key: ${{ runner.os }}-playwright-drivers-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Cache Playwright Drivers (Windows)
       if: runner.os == 'Windows'
       uses: actions/cache@v4
       with:
         path: ~\AppData\Local\playwright-rust\drivers
-        key: ${{ runner.os }}-playwright-drivers-1.56.1-v1
+        key: ${{ runner.os }}-playwright-drivers-${{ hashFiles('**/Cargo.lock') }}
 
     # Generate test fixtures (they're not committed)
     - name: Install ImageMagick (Ubuntu)
@@ -93,23 +97,43 @@ jobs:
     - name: Build
       run: cargo build --verbose
 
+    # Derive the assembled driver directory rather than hardcoding a version
+    # (it floats with the git-main pin). Only chromium is needed — that is the
+    # only browser folio's E2E tests launch.
     - name: Install Playwright browsers (Linux)
       if: runner.os == 'Linux'
-      run: ~/.cache/playwright-rust/drivers/playwright-1.56.1-linux/node ~/.cache/playwright-rust/drivers/playwright-1.56.1-linux/package/cli.js install chromium firefox webkit --with-deps
+      run: |
+        DRIVER_DIR=$(ls -d ~/.cache/playwright-rust/drivers/playwright-*-linux 2>/dev/null | head -1)
+        if [ -z "$DRIVER_DIR" ]; then
+          echo "No playwright-rust driver assembled under ~/.cache/playwright-rust/drivers" >&2
+          ls -la ~/.cache/playwright-rust/drivers 2>/dev/null || true
+          exit 1
+        fi
+        echo "Using driver at $DRIVER_DIR"
+        "$DRIVER_DIR/node" "$DRIVER_DIR/package/cli.js" install chromium --with-deps
 
     - name: Install Playwright browsers (macOS)
       if: runner.os == 'macOS'
       run: |
-        if [ -d "$HOME/Library/Caches/playwright-rust/drivers/playwright-1.56.1-mac-arm64" ]; then
-          "$HOME/Library/Caches/playwright-rust/drivers/playwright-1.56.1-mac-arm64/node" "$HOME/Library/Caches/playwright-rust/drivers/playwright-1.56.1-mac-arm64/package/cli.js" install chromium firefox webkit
-        else
-          "$HOME/Library/Caches/playwright-rust/drivers/playwright-1.56.1-mac/node" "$HOME/Library/Caches/playwright-rust/drivers/playwright-1.56.1-mac/package/cli.js" install chromium firefox webkit
+        DRIVER_DIR=$(ls -d "$HOME/Library/Caches/playwright-rust/drivers/"playwright-*-mac* 2>/dev/null | head -1)
+        if [ -z "$DRIVER_DIR" ]; then
+          echo "No playwright-rust driver assembled under $HOME/Library/Caches/playwright-rust/drivers" >&2
+          ls -la "$HOME/Library/Caches/playwright-rust/drivers" 2>/dev/null || true
+          exit 1
         fi
+        echo "Using driver at $DRIVER_DIR"
+        "$DRIVER_DIR/node" "$DRIVER_DIR/package/cli.js" install chromium
 
     - name: Install Playwright browsers (Windows)
       if: runner.os == 'Windows'
       run: |
-        & "$env:LOCALAPPDATA\playwright-rust\drivers\playwright-1.56.1-win32_x64\node.exe" "$env:LOCALAPPDATA\playwright-rust\drivers\playwright-1.56.1-win32_x64\package\cli.js" install chromium firefox webkit
+        $driverDir = Get-ChildItem "$env:LOCALAPPDATA\playwright-rust\drivers" -Directory -Filter "playwright-*-win32_x64" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $driverDir) {
+          Write-Error "No playwright-rust driver assembled under $env:LOCALAPPDATA\playwright-rust\drivers"
+          exit 1
+        }
+        Write-Host "Using driver at $($driverDir.FullName)"
+        & "$($driverDir.FullName)\node.exe" "$($driverDir.FullName)\package\cli.js" install chromium
 
     - name: Run tests (Linux/macOS)
       if: runner.os != 'Windows'
