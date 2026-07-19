@@ -513,12 +513,15 @@ fn test_ingest_interactive_mode_with_valid_input() {
 
     // Act: Run ingest in interactive mode with mocked stdin
     // Provide batch names via stdin: "morning\nafternoon\n"
+    // --headless: without it the binary opens the user's real default
+    // browser for the preview dashboard on every test run
     let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("folio"));
     cmd.arg("ingest")
         .arg("--source")
         .arg(source.path())
         .arg("--dest")
         .arg(archive.path())
+        .arg("--headless")
         .write_stdin("morning\nafternoon\n")
         .assert()
         .success()
@@ -568,12 +571,15 @@ fn test_ingest_interactive_mode_with_invalid_then_valid_input() {
 
     // Act: Provide invalid input first (with space), then valid input
     // stdin: "invalid name\nvalid-name\n"
+    // --headless: without it the binary opens the user's real default
+    // browser for the preview dashboard on every test run
     let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("folio"));
     cmd.arg("ingest")
         .arg("--source")
         .arg(source.path())
         .arg("--dest")
         .arg(archive.path())
+        .arg("--headless")
         .write_stdin("invalid name\nvalid-name\n")
         .assert()
         .success()
