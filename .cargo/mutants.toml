@@ -26,6 +26,7 @@ additional_cargo_test_args = ["-E", "not binary(browser_preview_test)"]
 examine_globs = [
     "crates/folio-core/src/**/*.rs",
     "crates/folio-ingest/src/**/*.rs",
+    "crates/folio-generator/src/**/*.rs",
 ]
 
 # Exclude generated code once panschema output lands (story 002): generated
@@ -57,4 +58,16 @@ exclude_re = [
     "ws_handler",
     "preview_handler_with_ws",
     "replace > with >= in generate_thumbnail",
+    # folio-generator network backends and tool-availability probes: the
+    # OpenAI/ComfyUI HTTP calls and the wait-loop's timing need a live server
+    # to exercise, and the exiftool/ffmpeg probes both shell out and gate the
+    # tests' skip-if-missing guards (so mutating them to `false` just skips the
+    # guarded test). The pure logic they wrap — find_output_filename,
+    # decode_image, the metadata/timeline/spec helpers — stays covered.
+    "for OpenAiSource>::generate",
+    "for ComfyUiSource>::generate",
+    "ComfyUiSource::wait_for_image",
+    "ComfyUiSource::api_url",
+    "exiftool_available",
+    "ffmpeg_available",
 ]

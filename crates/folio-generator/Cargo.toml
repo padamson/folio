@@ -1,0 +1,28 @@
+[package]
+name = "folio-generator"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+# Not published yet — reused locally. See ADR-0005.
+publish = false
+
+[dependencies]
+anyhow.workspace = true
+camino.workspace = true
+chrono.workspace = true
+image.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+async-trait = "0.1"
+async-openai = "0.30"
+reqwest = { version = "0.12", features = ["json"] }
+base64 = "0.22"
+rand = "0.8"
+tempfile.workspace = true
+
+[dev-dependencies]
+kamadak-exif.workspace = true
+tokio-test = "0.4"

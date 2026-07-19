@@ -5,6 +5,7 @@ members = [
     "crates/folio-core",
     "crates/folio-cli",
     "crates/folio-ingest",
+    "crates/folio-generator",
     "crates/folio-examples",
     # Future crates:
     # "crates/folio-catalog",
