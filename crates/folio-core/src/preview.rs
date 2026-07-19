@@ -1419,4 +1419,45 @@ mod tests {
         let (w, h) = thumbnail_dimensions(&bytes);
         assert_eq!((w, h), (40, 30), "small image must keep its dimensions");
     }
+
+    #[test]
+    fn test_workflow_stage_as_str() {
+        assert_eq!(WorkflowStage::Scan.as_str(), "Scan");
+        assert_eq!(WorkflowStage::Group.as_str(), "Group");
+        assert_eq!(WorkflowStage::Name.as_str(), "Name");
+        assert_eq!(WorkflowStage::Review.as_str(), "Review");
+        assert_eq!(WorkflowStage::Copy.as_str(), "Copy");
+    }
+
+    #[tokio::test]
+    async fn test_update_batch_name_bounds() {
+        let state = PreviewState {
+            batch_count: 1,
+            current_stage: WorkflowStage::Group,
+            batches: vec![BatchPreview {
+                index: 0,
+                name: Some("placeholder".to_string()),
+                file_count: 1,
+                first_photo: None,
+                last_photo: None,
+                first_thumbnail: None,
+                last_thumbnail: None,
+                time_range: None,
+            }],
+        };
+        let server = start_preview_server_with_state(state).await.unwrap();
+
+        // In-bounds index succeeds (kills the `>=`→`<` bound-flip, which would
+        // wrongly reject a valid index).
+        assert!(server
+            .update_batch_name(0, "named".to_string())
+            .await
+            .is_ok());
+
+        // Out-of-bounds index errors (kills the `-> Ok(())` body replacement,
+        // which would swallow the bounds check).
+        assert!(server.update_batch_name(5, "x".to_string()).await.is_err());
+
+        server.shutdown().await.unwrap();
+    }
 }

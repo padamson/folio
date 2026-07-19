@@ -34,3 +34,27 @@ examine_globs = [
 exclude_globs = [
     "crates/*/src/generated/**/*.rs",
 ]
+
+# Accepted survivors from the 2026-07-18 baseline sweep, encoded so the
+# in-diff CI gate stays honest (green means every killable mutant is killed).
+#
+# preview.rs adapter surface — the HTTP server, WebSocket handlers, and the
+# browser-open shim are exercised only by the browser E2E suite, which is
+# filtered out of per-mutant runs above. This whole module is slated to move
+# out of folio-core (a driving adapter per the roadmap's architecture
+# direction); until then these functions are consciously outside mutation
+# scope while the pure logic in the same file (generate_thumbnail, as_str,
+# update_batch_name bounds, HTML generation) stays covered.
+#
+# The generate_thumbnail `> → >=` pair are equivalent mutants: at an exact
+# max_size boundary both operators select the same branch (img.thumbnail is a
+# no-op when the image already fits), so no test can distinguish them.
+exclude_re = [
+    "open_browser",
+    "PreviewServer::has_browser",
+    "PreviewServer::shutdown",
+    "handle_socket",
+    "ws_handler",
+    "preview_handler_with_ws",
+    "replace > with >= in generate_thumbnail",
+]
