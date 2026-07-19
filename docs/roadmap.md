@@ -142,7 +142,8 @@ The workspace converges on the hexagonal (ports-and-adapters) shape from
   model. The deploy tree (k8s/tofu) is adopted selectively, if at all — a
   single container or launchd unit may be all a family server needs.
 
-ADR-0005 records the decision when the restructure lands.
+A future ADR records the hexagonal restructure decision when it lands
+(ADR-0005 is taken by the generator/examples split).
 
 ## Resume checklist
 

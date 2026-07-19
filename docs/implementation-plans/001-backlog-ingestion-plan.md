@@ -522,17 +522,34 @@ async fn test_browser_updates_on_batch_name() {
 ### Slice 3d: AI-Generated Example Data with Version Control
 
 **Status:** In Progress (2026-07-18 review). The `folio-examples` crate and both
-binaries exist with green tests. Remaining before complete: harden
-`extract_tarball` (extract to temp + verify a checksum with the already-declared
-`sha2`, then move into place), write video metadata (CreateDate/Make/Model via
-exiftool) so videos participate in temporal batching, fail fast when `exiftool`
-is missing instead of silently generating timestamp-less photos, regenerate
-`example-data/` with the corrected batch-2 timestamps (19:30 start; earlier
-data used 18:00, under the 2h gap threshold), publish the
-`folio-example-data` repo + `v0.1.0` release, and reconcile
-`docs/technical/example-data-strategy.md` (Replicate/`--story`/`--preview` and
-the story.slice versioning scheme are stale — code uses OpenAI/ComfyUI and
-tags matching the folio workspace version).
+binaries exist with green tests.
+
+The completion of this slice is now shaped by the generator/examples split
+([ADR-0005](../adr/0005-generator-examples-split.md)): extract the general
+engine into a new `folio-generator` crate (no `folio-core` dependency, no folio
+scenario, no GitHub distribution) and leave `folio-examples` as the thin folio
+consumer plus the distribution harness.
+
+Remaining before complete, by layer:
+
+- **`folio-generator` (engine):** extract the backend abstraction (local
+  ComfyUI + remote OpenAI), prompt→image, EXIF stamping, timeline/batch spread,
+  and video synthesis; write video capture metadata (CreateDate/Make/Model via
+  exiftool) so videos participate in temporal batching; fail fast when
+  `exiftool` is missing instead of silently generating timestamp-less media;
+  fix the ComfyUI stall-detection (it currently only detects a dead server, not
+  a hung generation).
+- **`folio-examples` (harness + distribution):** supply the Thanksgiving
+  scenario, SD-card layout, D800 EXIF, and dedup fixtures via `folio-generator`;
+  harden `extract_tarball` (extract to temp + verify a checksum with the
+  already-declared `sha2`, then move into place); regenerate `example-data/`
+  with the corrected batch-2 timestamps (19:30 start; earlier data used 18:00,
+  under the 2h gap threshold); publish the `folio-example-data` repo + `v0.1.0`
+  release.
+- **Docs:** reconcile `docs/technical/example-data-strategy.md`
+  (Replicate/`--story`/`--preview` and the story.slice versioning scheme are
+  stale — code uses OpenAI/ComfyUI and tags matching the folio workspace
+  version).
 
 **User Value:** Realistic, shareable example data for demonstrating complete ingestion workflows. Developers and users can download pre-generated AI media to test features without requiring real family photos.
 
