@@ -9,5 +9,5 @@ pub use media::{
 
 pub use preview::{
     open_browser, start_preview_server, start_preview_server_with_state,
-    start_preview_with_browser, BrowserHandle, PreviewServer, PreviewState, WorkflowStage,
+    start_preview_with_browser, PreviewServer, PreviewState, WorkflowStage,
 };

@@ -42,8 +42,8 @@ tower-http.workspace = true
 # Base64 encoding
 base64.workspace = true
 
-# Browser automation
-playwright-rs.workspace = true
+# Open the preview dashboard in the user's default browser
+webbrowser.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

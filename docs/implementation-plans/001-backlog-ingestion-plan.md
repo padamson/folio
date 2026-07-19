@@ -874,6 +874,11 @@ cargo run --bin folio -- ingest \
 - [ ] Display: "✓ All files copied and verified. SD card can be safely reformatted."
 - [ ] Only show "safe to reformat" if 100% verified
 - [ ] Supports `--dry-run` flag (no prompts, no copying, just preview)
+- [ ] `--dry-run` shows the browser preview dashboard (2026-07-18 finding:
+      today dry-run skips the preview entirely, which is backwards — a dry
+      run is exactly when you want to *see* the batch structure before
+      committing to a copy; fold the preview into the preview-then-confirm
+      flow this slice builds)
 - [ ] Supports `--yes/-y` flag to auto-confirm (dangerous, for automation)
 - [ ] Handle Ctrl-C gracefully (report progress, exit code 130)
 

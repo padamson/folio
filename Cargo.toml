@@ -60,8 +60,14 @@ tower-http = { version = "0.6", features = ["fs", "cors"] }
 # Base64 encoding for embedded thumbnails
 base64 = "0.21"
 
-# Browser automation
-playwright-rs = "0.7.0"
+# Opens the user's default browser for the preview dashboard (runtime dep,
+# replacing the former playwright-rs runtime usage per ADR-0004)
+webbrowser = "1"
+
+# Browser automation for E2E tests only (dev-dependency in consumers).
+# Dogfooding upstream main per ADR-0004; Cargo.lock pins the resolved
+# commit and `cargo update -p playwright-rs` advances it.
+playwright-rs = { git = "https://github.com/padamson/playwright-rust", branch = "main" }
 
 # Testing
 assert_cmd = "2.0"
@@ -82,13 +88,9 @@ opt-level = 0
 [profile.test]
 opt-level = 0
 
-# Patch playwright-rust for local development/testing
-# Uncomment to use a development version of playwright-rust:
+# Local co-editing override for playwright-rust (active-iteration dogfood
+# mode, ADR-0004). Uncomment to build against the local working tree instead
+# of the pinned git commit:
 #
-# Option 1: Use local clone of playwright-rust repository (workspace)
-# [patch.crates-io]
+# [patch."https://github.com/padamson/playwright-rust"]
 # playwright-rs = { path = "../playwright-rust/crates/playwright" }
-#
-# Option 2: Use git version (specific branch/commit)
-# [patch.crates-io]
-# playwright-rs = { git = "https://github.com/microsoft/playwright-rust", branch = "main" }

@@ -29,8 +29,6 @@ anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 
-# Browser automation
-playwright-rs.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]

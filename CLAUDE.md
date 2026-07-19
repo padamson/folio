@@ -979,3 +979,71 @@ docker-compose down
 # Verify backup integrity
 ./scripts/verify_backup.sh /backup/path
 ```
+
+## Playwright-rs
+
+This project uses [playwright-rs](https://docs.rs/playwright-rs) for
+browser automation / E2E testing. The crate-level rustdoc on docs.rs
+is the canonical API tour; this section is the high-level conventions
+overlay.
+
+- **Object model:** `Playwright::launch()` → `BrowserType`
+  (`.chromium()` / `.firefox()` / `.webkit()`) → `Browser` →
+  `BrowserContext` → `Page` → `Locator`. Build locators with
+  `page.locator(...)` or the semantic `get_by_*` helpers, then chain
+  action / assertion methods.
+- **Use the `locator!()` macro** for selector literals — compile-time
+  validation catches typos, unbalanced brackets, and unknown engine
+  prefixes. Fall back to `&str` only for selectors computed at runtime.
+- **`expect()` assertions over manual polling.** They auto-retry within
+  the default timeout — never sprinkle `tokio::time::sleep` between
+  an action and a check.
+- **Builders / setters for options.** `goto`, `click`, `screenshot`,
+  `fill`, `tracing().start`, etc. take an `Options` struct. These are
+  `#[non_exhaustive]`, so struct literals won't compile — use the
+  type's `builder()` where it has one, otherwise chain setters off
+  `Default`/`new()` (e.g. `GetByRoleOptions::default().name("OK")`).
+- **`Result<T>` and `async/await` on `tokio`** throughout. One error
+  type: `playwright_rs::Error`.
+- **No reimplemented browser protocols.** This crate is a thin
+  JSON-RPC client to the upstream Playwright server; the API mirrors
+  playwright-python / java / .NET semantics. When in doubt, the
+  [upstream Playwright docs](https://playwright.dev/docs/api) are
+  authoritative.
+- **Structured data out of the page: typed `evaluate`.** The generic
+  `page.evaluate` deserializes the JS return value into your own serde
+  type — never return delimited strings from JS and split them in Rust.
+  `evaluate_value` (String) is for one-off scalar probes only.
+- **Drags go through `Locator::drag_to`** — it drives real
+  pointer-capture event chains, and its `target_position` option (an
+  offset from the target's top-left) handles drag-to-coordinate when
+  you pass the containing canvas/stage as the target. Held-button
+  `Mouse::move_to` sequences hang on headless Linux; don't use them
+  for drags.
+- **Newer surface worth knowing (options on docs.rs):** stable/redacted
+  screenshots (`animations(Disabled)`, `mask`); context-level events
+  (`BrowserContext::on_download` / `on_page_load` / `on_frame_*`,
+  `Browser::on_context`) for multi-tab fixtures; HAR capture
+  (`tracing().start_har` / `stop_har`, replayable via `route_from_har`);
+  external file drop (`Locator::drop`, vs intra-page `drag_to`);
+  ARIA-tree assertions (`expect_page(..).to_match_aria_snapshot`);
+  File System Access API testing (`page.fake_file_system()` fakes the
+  save/open pickers — don't hand-roll an init-script shim).
+
+### Debugging failures
+
+Wrap the test body in tracing → on failure, `playwright show-trace
+trace.zip` opens a visual debugger. See
+[`examples/trace_on_failure.rs`](https://github.com/padamson/playwright-rust/blob/main/crates/playwright/examples/trace_on_failure.rs)
+for the canonical Rust pattern (Rust has no async `Drop`, so cleanup
+is explicit).
+
+For programmatic trace inspection (CI bots, agent feedback loops),
+add [`playwright-rs-trace`](https://docs.rs/playwright-rs-trace) to
+`[dev-dependencies]`.
+
+### References
+
+- Full API: <https://docs.rs/playwright-rs>
+- Runnable examples: <https://github.com/padamson/playwright-rust/tree/main/crates/playwright/examples>
+- Upstream Playwright docs: <https://playwright.dev/docs/api>

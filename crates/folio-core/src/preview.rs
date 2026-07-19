@@ -15,7 +15,6 @@ use axum::{
 };
 use image::codecs::jpeg::JpegEncoder;
 use image::{DynamicImage, GenericImageView, ImageReader};
-use playwright_rs::{Browser, Playwright};
 use std::io::Cursor;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -107,93 +106,31 @@ impl PreviewState {
     }
 }
 
-/// Handle to keep browser instance alive
+/// Open the preview URL in the user's default browser
 ///
-/// The browser will close when this handle is dropped.
-pub struct BrowserHandle {
-    browser: Browser,
-}
-
-impl BrowserHandle {
-    /// Check if browser is still open
-    ///
-    /// For now, just returns true (assumes browser is open).
-    /// TODO: Add actual check when playwright-rust supports it.
-    /// See: https://github.com/padamson/playwright-rust/issues/2
-    pub fn is_open(&self) -> bool {
-        // playwright-rust doesn't provide a way to check if browser is closed
-        // For now, assume it's open if we have the handle
-        true
-    }
-
-    /// Close the browser gracefully
-    pub async fn close(self) -> Result<(), String> {
-        self.browser
-            .close()
-            .await
-            .map_err(|e| format!("Failed to close browser: {}", e))
-    }
-}
-
-/// Open the preview URL in the default browser
-///
-/// Uses playwright-rs to launch a Chromium browser instance and navigate to the preview URL.
-/// The browser stays open in normal (non-headless) mode for user visibility.
+/// Fire-and-forget: the browser is the user's own, so folio holds no handle
+/// to it and takes no responsibility for closing it.
 ///
 /// # Arguments
 ///
 /// * `url` - The preview server URL to open
 ///
-/// # Returns
-///
-/// Browser handle that must be kept alive
-///
 /// # Errors
 ///
-/// Returns error if:
-/// - playwright-rs initialization fails
-/// - Browser launch fails
-/// - Navigation to URL fails
+/// Returns an error if no browser could be opened (e.g. a headless
+/// environment). Callers that treat the preview as optional should degrade
+/// to printing the URL instead of failing.
 ///
 /// # Example
 ///
 /// ```no_run
 /// use folio_core::preview::open_browser;
 ///
-/// # tokio_test::block_on(async {
-/// let handle = open_browser("http://127.0.0.1:8080").await?;
-/// assert!(handle.is_open());
-/// handle.close().await?;
+/// open_browser("http://127.0.0.1:8080")?;
 /// # Ok::<(), String>(())
-/// # });
 /// ```
-pub async fn open_browser(url: &str) -> Result<BrowserHandle, String> {
-    // Launch playwright
-    let playwright = Playwright::launch()
-        .await
-        .map_err(|e| format!("Failed to launch playwright: {}", e))?;
-
-    // Launch Chromium in non-headless mode (user-visible)
-    // TODO: playwright-rust doesn't expose headless option directly in launch()
-    // See: https://github.com/padamson/playwright-rust/issues/1
-    let browser = playwright
-        .chromium()
-        .launch()
-        .await
-        .map_err(|e| format!("Failed to launch browser: {}", e))?;
-
-    // Create a new page and navigate to the URL
-    let page = browser
-        .new_page()
-        .await
-        .map_err(|e| format!("Failed to create page: {}", e))?;
-
-    page.goto(url, None)
-        .await
-        .map_err(|e| format!("Failed to navigate to {}: {}", url, e))?;
-
-    // Return handle with browser (page stays open with browser)
-    Ok(BrowserHandle { browser })
+pub fn open_browser(url: &str) -> Result<(), String> {
+    webbrowser::open(url).map_err(|e| format!("Failed to open browser for {}: {}", url, e))
 }
 
 /// Shared application state for WebSocket updates
@@ -212,7 +149,7 @@ struct AppState {
 pub struct PreviewServer {
     addr: SocketAddr,
     handle: JoinHandle<()>,
-    browser: Option<BrowserHandle>,
+    browser_opened: bool,
     state: Option<Arc<RwLock<PreviewState>>>,
     tx: Option<broadcast::Sender<String>>,
 }
@@ -237,9 +174,9 @@ impl PreviewServer {
         format!("http://{}", self.addr)
     }
 
-    /// Check if server has browser attached
+    /// Check whether a browser was successfully opened for this server
     pub fn has_browser(&self) -> bool {
-        self.browser.is_some()
+        self.browser_opened
     }
 
     /// Update a batch name in the preview state
@@ -332,9 +269,10 @@ impl PreviewServer {
         Ok(())
     }
 
-    /// Shutdown the preview server and close browser if attached
+    /// Shutdown the preview server
     ///
-    /// Closes the browser first (if present), then shuts down the server.
+    /// The user's browser (if one was opened) is theirs to close; folio only
+    /// stops serving.
     ///
     /// # Example
     ///
@@ -348,12 +286,6 @@ impl PreviewServer {
     /// # });
     /// ```
     pub async fn shutdown(self) -> Result<(), String> {
-        // Close browser first if present
-        if let Some(browser) = self.browser {
-            browser.close().await?;
-        }
-
-        // Shutdown server
         self.handle.abort();
         Ok(())
     }
@@ -405,7 +337,7 @@ pub async fn start_preview_server() -> Result<PreviewServer, String> {
     Ok(PreviewServer {
         addr,
         handle,
-        browser: None,
+        browser_opened: false,
         state: None,
         tx: None,
     })
@@ -471,24 +403,22 @@ pub async fn start_preview_server_with_state(state: PreviewState) -> Result<Prev
     Ok(PreviewServer {
         addr,
         handle,
-        browser: None,
+        browser_opened: false,
         state: Some(shared_state),
         tx: Some(tx),
     })
 }
 
-/// Start preview server and automatically open browser
+/// Start preview server and open the user's default browser
 ///
-/// Convenience function that combines server startup and browser launching.
-/// The browser opens in normal (non-headless) mode for user visibility.
+/// Convenience function that combines server startup and browser opening.
+/// Browser opening is best-effort: in an environment with no browser (e.g.
+/// headless CI), the server still starts and the caller can print the URL —
+/// `has_browser()` reports whether the open succeeded.
 ///
 /// # Arguments
 ///
 /// * `state` - Preview state to display
-///
-/// # Returns
-///
-/// PreviewServer with browser handle attached
 ///
 /// # Example
 ///
@@ -499,10 +429,9 @@ pub async fn start_preview_server_with_state(state: PreviewState) -> Result<Prev
 /// let state = PreviewState::new(3);
 /// let server = start_preview_with_browser(state).await?;
 ///
-/// // Server is running with browser already open
-/// assert!(server.has_browser());
+/// // Server is running; the user's browser opened if one was available
+/// println!("Preview at {}", server.url());
 ///
-/// // Cleanup (closes both browser and server)
 /// server.shutdown().await?;
 /// # Ok::<(), String>(())
 /// # });
@@ -511,11 +440,15 @@ pub async fn start_preview_with_browser(state: PreviewState) -> Result<PreviewSe
     // Start server first
     let mut server = start_preview_server_with_state(state).await?;
 
-    // Open browser and navigate to server URL
-    let browser = open_browser(&server.url()).await?;
-
-    // Attach browser to server
-    server.browser = Some(browser);
+    // Best-effort: open the user's default browser at the server URL
+    match open_browser(&server.url()) {
+        Ok(()) => server.browser_opened = true,
+        Err(e) => eprintln!(
+            "Could not open a browser ({}); open {} manually",
+            e,
+            server.url()
+        ),
+    }
 
     Ok(server)
 }
