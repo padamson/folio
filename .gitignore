@@ -1,8 +1,11 @@
 # Rust
 target/
-Cargo.lock
 **/*.rs.bk
 *.pdb
+# Cargo.lock is committed on purpose: this workspace ships binaries, and the
+# lockfile is what pins the playwright-rs git dependency to a deliberate
+# commit (ADR-0004) — without it, every build floats to upstream main HEAD
+# and the CI driver cache key has nothing to hash.
 
 # Nextest artifacts
 .nextest/

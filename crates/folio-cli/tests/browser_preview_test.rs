@@ -103,25 +103,13 @@ async fn test_browser_preview_e2e_static_render() {
         .await
         .unwrap();
 
-    // Micro-slice 3: workflow progress. The element renders each stage on
-    // its own line, and playwright-rs `to_contain_text` does not normalize
-    // whitespace the way upstream Playwright does (reported upstream), so
-    // compare against a whitespace-normalized string.
-    let progress_text = page
-        .locator(".workflow-progress")
-        .text_content()
+    // Micro-slice 3: workflow progress. The stages render on separate lines;
+    // to_contain_text normalizes whitespace like upstream Playwright (fixed
+    // in playwright-rust#124, which this assertion originally surfaced).
+    expect(page.locator(".workflow-progress"))
+        .to_contain_text("Scan → Group → Name → Review → Copy")
         .await
-        .expect("Failed to get workflow progress text")
-        .expect("Workflow progress should have text");
-    let normalized = progress_text
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
-    assert!(
-        normalized.contains("Scan → Group → Name → Review → Copy"),
-        "Workflow progress should show the stage sequence, got: {}",
-        normalized
-    );
+        .unwrap();
 
     // Micro-slice 4: current stage highlighted
     expect(page.locator(".workflow-stage.active"))
